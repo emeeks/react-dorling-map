@@ -98,7 +98,6 @@
     "flubber": "^0.4.2",
     "gsap": "2.0.1",
     "memoize-one": "^4.0.0",
-    "topojson": "^3.0.2",
-    "topojson-client": "^3.0.0"
+    "topojson": "^3.0.2"
   }
 }

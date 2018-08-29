@@ -13,7 +13,6 @@ import {
 } from 'd3-force';
 import memoize from 'memoize-one';
 
-  const styleKeys = [...pKeys, nKeys].reduce((p,c) => p.indexOf(c) !== -1 ? p : [...p,c], [])
 // neighbors optional
 // data join optional
 

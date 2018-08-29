@@ -1,11 +1,7 @@
 import React from 'react';
-import { feature, neighbors, mesh } from 'topojson-client';
-import worldData from './geodata/world';
-import countryName from './geodata/country_names';
-import isoCode from './geodata/iso_codes';
 import { geoPath, geoMercator } from 'd3-geo';
 import { toCircle, fromCircle } from 'flubber';
-import { interpolateHsl, interpolateNumber } from "d3-interpolate"
+import { interpolateHsl, interpolateNumber } from 'd3-interpolate';
 import { scaleLinear } from 'd3-scale';
 import TweenMax from 'gsap/TweenMax';
 import {
@@ -16,24 +12,37 @@ import {
   forceCollide
 } from 'd3-force';
 import memoize from 'memoize-one';
-const tweenableColors = {"fill": true, "stroke": true}
+
+  const styleKeys = [...pKeys, nKeys].reduce((p,c) => p.indexOf(c) !== -1 ? p : [...p,c], [])
+// neighbors optional
+// data join optional
+
+const tweenableColors = { fill: true, stroke: true };
 
 const interpolateStyles = (previousStyle, nextStyle) => {
-  const pKeys = Object.keys(previousStyle)
-  const nKeys = Object.keys(nextStyle)
-  const styleKeys = [...pKeys, nKeys].reduce((p,c) => p.indexOf(c) !== -1 ? p : [...p,c], [])
-  const styleInterpolators = {}
+  const pKeys = Object.keys(previousStyle);
+  const nKeys = Object.keys(nextStyle);
+  const styleKeys = [...pKeys, nKeys].reduce(
+    (p, c) => (p.indexOf(c) !== -1 ? p : [...p, c]),
+    []
+  );
+  const styleInterpolators = {};
 
-  styleKeys.forEach(styleKey => {
+  styleKeys.forEach((styleKey) => {
     if (tweenableColors[styleKey]) {
-      styleInterpolators[styleKey] = interpolateHsl(previousStyle[styleKey] || "white", nextStyle[styleKey] || "white")
+      styleInterpolators[styleKey] = interpolateHsl(
+        previousStyle[styleKey] || 'white',
+        nextStyle[styleKey] || 'white'
+      );
+    } else {
+      styleInterpolators[styleKey] = interpolateNumber(
+        previousStyle[styleKey] || 0,
+        nextStyle[styleKey] || 0
+      );
     }
-    else {
-      styleInterpolators[styleKey] = interpolateNumber(previousStyle[styleKey] || 0, nextStyle[styleKey] || 0)
-    }
-  })
-  return styleInterpolators
-}
+  });
+  return styleInterpolators;
+};
 
 const generateCirclePath = (cx, cy, r) =>
   `${[
@@ -64,42 +73,54 @@ const sizeByWrapper = sizeBy =>
 class DorlingCartogram extends React.Component {
   constructor(props) {
     const {
-      size,
-      sizeBy = () => 5,
+      size = [500, 500],
       geoStyle = () => ({ fill: 'gold', stroke: 'black' }),
       circleStyle = geoStyle || (() => ({ fill: 'gold', stroke: 'black' })),
-      projectionType = geoMercator
+      projectionType = geoMercator,
+      label,
+      mapData
     } = props;
 
-    // //PREP WORK IN CONSTRUCTOR MOVE OUT FOR RESPONSIVE COMPONENT
-    const longestSubArc = (p, c) => Math.max(p, c.length);
+    const features = mapData;
 
-    worldData.objects.countries.geometries.forEach((geom) => {
-      if (geom.type === 'MultiPolygon') {
-        geom.arcs = geom.arcs.sort((a, b) => b.reduce(longestSubArc, 0) - a.reduce(longestSubArc, 0));
+    const labelFn = label === true ? d => d.id : label;
+
+    features.forEach(({ geometry }) => {
+      if (geometry.type === 'MultiPolygon') {
+        geometry.coordinates = geometry.coordinates.sort((a, b) => b[0].length - a[0].length);
       }
     });
+    const extentFeatures = {
+      type: 'GeometryCollection',
+      geometries: features.map(d => d.geometry)
+    };
 
-    const features = feature(worldData, worldData.objects.countries).features;
-    const featureMesh = mesh(worldData, worldData.objects.countries);
-    const countryNeighbors = neighbors(worldData.objects.countries.geometries);
-
-    const projection = projectionType().fitExtent([[0, 0], size], featureMesh);
+    const projection = projectionType().fitExtent(
+      [[0, 0], size],
+      extentFeatures
+    );
     const pathGenerator = geoPath().projection(projection);
 
     const featureEdges = [];
 
     features.forEach((d, i) => {
-      d.label = countryName[d.id];
-      d.iso2 = isoCode[countryName[d.id]];
-      d.neighbors = countryNeighbors[i].map(p => features[p]);
-      d.neighbors.forEach((target) => {
-        featureEdges.push({ source: d, target });
-      });
       d.centroid = pathGenerator.centroid(d);
       d.geoPath = pathGenerator(d);
       d.x = d.centroid[0];
       d.y = d.centroid[1];
+
+      if (d.geometry.type === 'MultiPolygon') {
+        d.geoPath = `M${d.geoPath
+          .split('M')
+          .filter(d => d.length > 0)
+          .sort((a, b) => b.length - a.length)
+          .join('M')}`;
+      }
+
+      d.properties.neighbors &&
+        d.properties.neighbors.forEach((target) => {
+          featureEdges.push({ source: d, target: features[target] });
+        });
     });
 
     super(props);
@@ -109,17 +130,19 @@ class DorlingCartogram extends React.Component {
       featureEdges,
       geoStyleFn: typeof geoStyle === 'function' ? geoStyle : () => geoStyle,
       circleStyleFn:
-        typeof circleStyle === 'function' ? circleStyle : () => circleStyle
+        typeof circleStyle === 'function' ? circleStyle : () => circleStyle,
+      labelFn
     };
   }
 
   forceSimulateCartogram = memoize((sizeBy = () => 5, data) => {
-    const { features, featureEdges, geoStyleFn, circleStyleFn } = this.state;
-    const { size } = this.props;
-    
+    const {
+      features, featureEdges, geoStyleFn, circleStyleFn
+    } = this.state;
+    const { size = [500, 500], zoomToFit } = this.props;
 
     const mappedFeatures = features.map((d, i) => {
-      const correspondingDataFeature = data.find(p => p.id === d.iso2);
+      const correspondingDataFeature = data.find(p => p.id === d.id);
       const datum = {
         ...d,
         ...correspondingDataFeature
@@ -160,28 +183,45 @@ class DorlingCartogram extends React.Component {
       -Infinity
     );
 
-    const xDifference = (minX + (size[0] - maxX)) / size[0];
-    const yDifference = (minY + (size[1] - maxY)) / size[1];
+    const aspectRatio = (maxX - minX) / (maxY - minY);
+    // aspectRatio = Math.min(xDifference, yDifference)
+    let xRange = [0, size[0]];
+    let yRange = [0, size[1]];
+    let changeRate;
+    if (aspectRatio > 1) {
+      changeRate = (xRange[1] - xRange[0]) / (maxX - minX);
+      const middle = size[1] / 2;
+      const height = ((maxY - minY) / 2) * changeRate;
+      yRange = [middle - height, middle + height];
+    } else {
+      changeRate = (yRange[1] - yRange[0]) / (maxY - minY);
+      const middle = size[0] / 2;
+      const width = ((maxX - minX) * changeRate) / 2;
+      xRange = [middle - width, middle + width];
+    }
 
-    const changeRate = Math.min(xDifference, yDifference);
-    const changeScale = scaleLinear()
-      .domain(xDifference < yDifference ? [minX, maxX] : [minY, maxY])
-      .range(xDifference < yDifference ? [0, size[0]] : [0, size[1]]);
+    const xScale = scaleLinear()
+      .domain([minX, maxX])
+      .range(xRange);
+    const yScale = scaleLinear()
+      .domain([minY, maxY])
+      .range(yRange);
 
-    
     mappedFeatures.forEach((d, i) => {
-      const circleStyleD = circleStyleFn(d)
-      const geoStyleD = geoStyleFn(d)
+      const circleStyleD = circleStyleFn(d);
+      const geoStyleD = geoStyleFn(d);
 
-      d.x = changeScale(d.x);
-      d.y = changeScale(d.y);
-      d.r += changeRate * d.r;
+      if (zoomToFit) {
+        d.x = xScale(d.x);
+        d.y = yScale(d.y);
+        d.r = changeRate * d.r;
+      }
+
       d.circlePath = generateCirclePath(d.x, d.y, d.r);
       d.toCartogram = toCircle(d.geoPath, d.x, d.y, d.r);
       d.toMap = fromCircle(d.x, d.y, d.r, d.geoPath);
-      d.toCartogramStyle = interpolateStyles(geoStyleD, circleStyleD)
-      d.toMapStyle = interpolateStyles(circleStyleD, geoStyleD)
-
+      d.toCartogramStyle = interpolateStyles(geoStyleD, circleStyleD);
+      d.toMapStyle = interpolateStyles(circleStyleD, geoStyleD);
     });
     return mappedFeatures;
   })
@@ -190,9 +230,18 @@ class DorlingCartogram extends React.Component {
     const { transitionSeconds = 1 } = this.props;
     const counter = { var: 0 };
     const paths = this.svg.querySelectorAll('path');
+    const labels = this.svg.querySelectorAll('.cartogram-label');
+    labels.forEach((label, labelI) => {
+      const labelFeature = features[labelI];
+      const xyCoords =
+        morphingDirection === 'toCartogram'
+          ? [labelFeature.x, labelFeature.y]
+          : labelFeature.centroid;
+      TweenMax.to(label, transitionSeconds, { x: xyCoords[0], y: xyCoords[1] });
+    });
     TweenMax.to(counter, transitionSeconds, {
       var: 100,
-      fill: "green",
+      fill: 'green',
       onUpdate() {
         paths.forEach((path, pathI) => {
           if (counter.var === 100 && morphingDirection === 'toMap') {
@@ -203,9 +252,11 @@ class DorlingCartogram extends React.Component {
               features[pathI][morphingDirection](counter.var / 100)
             );
           }
-          Object.keys(features[pathI][`${morphingDirection}Style`]).forEach(styleKey => {
-            path.style[styleKey] = features[pathI][`${morphingDirection}Style`][styleKey](counter.var / 100)
-          })
+          Object.keys(features[pathI][`${morphingDirection}Style`]).forEach((styleKey) => {
+            path.style[styleKey] = features[pathI][
+              `${morphingDirection}Style`
+            ][styleKey](counter.var / 100);
+          });
         });
       }
     });
@@ -214,11 +265,7 @@ class DorlingCartogram extends React.Component {
   shouldComponentUpdate(nextProps) {
     const found = this.state.features.find((d, i) =>
       sizeByWrapper(this.props.sizeBy)(d, i) !==
-        sizeByWrapper(nextProps.sizeBy)(
-          d,
-          i
-        )
-    );
+        sizeByWrapper(nextProps.sizeBy)(d, i));
     if (found) {
       return true;
     }
@@ -234,13 +281,10 @@ class DorlingCartogram extends React.Component {
     return true;
   }
 
-  generateFeatures = memoize((features, sizeBy) =>
-    list.filter(item => item.text.includes(filterText)))
-
   render() {
-    const { geoStyleFn, circleStyleFn } = this.state;
+    const { geoStyleFn, circleStyleFn, labelFn } = this.state;
     const {
-      size, sizeBy, data, cartogram
+      size = [500, 500], sizeBy, data, cartogram
     } = this.props;
 
     const sizedFeatures = this.forceSimulateCartogram(sizeBy, data);
@@ -248,14 +292,36 @@ class DorlingCartogram extends React.Component {
     return (
       <div>
         <svg width={size[0]} height={size[1]} ref={ref => (this.svg = ref)}>
-          {sizedFeatures.map(f => (
-            <path
-              fill="gold"
-              stroke="black"
-              d={cartogram ? f.circlePath : f.geoPath}
-              style={cartogram ? circleStyleFn(f) : geoStyleFn(f)}
-            />
-          ))}
+          {sizedFeatures.map((f, i) => {
+            let label = labelFn && labelFn(f);
+            if (typeof label === 'string' || typeof label === 'number') {
+              label = (
+                <text y={6} textAnchor="middle">
+                  {label}
+                </text>
+              );
+            }
+            return (
+              <g key={`cartogram-element-${f.id || i}`}>
+                <path
+                  fill="gold"
+                  stroke="black"
+                  d={cartogram ? f.circlePath : f.geoPath}
+                  style={cartogram ? circleStyleFn(f) : geoStyleFn(f)}
+                />
+                {
+                  <g
+                    className="cartogram-label"
+                    transform={`translate(${cartogram ? f.x : f.centroid[0]},${
+                      cartogram ? f.y : f.centroid[1]
+                    })`}
+                  >
+                    {label}
+                  </g>
+                }
+              </g>
+            );
+          })}
         </svg>
       </div>
     );

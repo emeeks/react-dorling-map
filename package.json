@@ -97,7 +97,6 @@
     "d3-scale": "^2.1.2",
     "flubber": "^0.4.2",
     "gsap": "2.0.1",
-    "memoize-one": "^4.0.0",
-    "topojson": "^3.0.2"
+    "memoize-one": "^4.0.0"
   }
 }

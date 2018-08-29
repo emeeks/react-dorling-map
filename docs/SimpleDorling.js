@@ -1,8 +1,9 @@
 import React from 'react';
 import DorlingCartogram from '../src/DorlingCartogram';
-// import { geoAzimuthalEquidistant } from 'd3-geo';
+import geoNaturalEarth1 from 'd3-geo/src/projection/naturalEarth1';
+import geodata from './world.json';
 
-const dynamicSize = (d, i) => (d.watchers && d.watchers / 10) || i / 10 + 5;
+const dynamicSize = (d, i) => (d.watchers && d.watchers / 10) || i / 20 + 1;
 const staticSize = d => (d.bbhouseholds && d.bbhouseholds / 10) || 0;
 const countryData = [
   { id: 'PE', bbhouseholds: 100, watchers: 50 },
@@ -54,28 +55,28 @@ const countryData = [
   { id: 'TZ', bbhouseholds: 100, watchers: 50 },
   { id: 'TH', bbhouseholds: 100, watchers: 50 },
   { id: 'TL', bbhouseholds: 100, watchers: 50 },
-  { id: 'TG', bbhouseholds: 100, watchers: 50 },
-  { id: 'TK', bbhouseholds: 100, watchers: 50 },
-  { id: 'TO', bbhouseholds: 100, watchers: 50 },
-  { id: 'TT', bbhouseholds: 100, watchers: 50 },
-  { id: 'TN', bbhouseholds: 100, watchers: 50 },
-  { id: 'TR', bbhouseholds: 100, watchers: 50 },
-  { id: 'TM', bbhouseholds: 100, watchers: 50 },
-  { id: 'TC', bbhouseholds: 100, watchers: 50 },
-  { id: 'TV', bbhouseholds: 100, watchers: 50 },
-  { id: 'UG', bbhouseholds: 100, watchers: 50 },
-  { id: 'UA', bbhouseholds: 100, watchers: 50 },
-  { id: 'AE', bbhouseholds: 100, watchers: 50 },
-  { id: 'GB', bbhouseholds: 100, watchers: 50 },
-  { id: 'US', bbhouseholds: 100, watchers: 50 }
+  { id: 'TG', bbhouseholds: 100, watchers: 10 },
+  { id: 'TK', bbhouseholds: 100, watchers: 20 },
+  { id: 'TO', bbhouseholds: 60, watchers: 30 },
+  { id: 'TT', bbhouseholds: 70, watchers: 40 },
+  { id: 'TN', bbhouseholds: 80, watchers: 60 },
+  { id: 'TR', bbhouseholds: 90, watchers: 70 },
+  { id: 'TM', bbhouseholds: 50, watchers: 80 },
+  { id: 'TC', bbhouseholds: 250, watchers: 90 },
+  { id: 'TV', bbhouseholds: 200, watchers: 150 },
+  { id: 'UG', bbhouseholds: 180, watchers: 250 },
+  { id: 'UA', bbhouseholds: 150, watchers: 150 },
+  { id: 'AE', bbhouseholds: 50, watchers: 250 },
+  { id: 'GB', bbhouseholds: 300, watchers: 150 },
+  { id: 'US', bbhouseholds: 500, watchers: 500 }
 ];
 
 class SimpleDorling extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      carto: false,
-      sizeByBasic: false
+      carto: true,
+      sizeByBasic: true
     };
   }
 
@@ -93,16 +94,33 @@ class SimpleDorling extends React.Component {
           Change SizeBy
         </button>
         <DorlingCartogram
+          zoomToFit
           cartogram={this.state.carto}
-          circleStyle={{ fill: 'red' }}
+          //          circleStyle={{ fill: 'red' }}
           geoStyle={d =>
             (d.bbhouseholds ? { fill: 'purple' } : { fill: 'orange' })
           }
           transitionSeconds={0.5}
-          size={[1500, 800]}
+          size={[800, 600]}
           sizeBy={this.state.sizeByBasic ? dynamicSize : staticSize}
-          //          projectionType={geoAzimuthalEquidistant}
+          projectionType={geoNaturalEarth1}
           data={countryData}
+          mapData={geodata}
+          label={d =>
+            (d.id ? (
+              <text
+                fill="white"
+                textAnchor="middle"
+                fontWeight={900}
+                fontSize={`${d.r / 2}px`}
+                y={d.r / 3.5}
+              >
+                {d.id}
+              </text>
+            ) : (
+              ''
+            ))
+          }
         />
         <pre>
           {`import React from 'react';

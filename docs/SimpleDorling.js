@@ -75,7 +75,7 @@ class SimpleDorling extends React.Component {
   constructor(props) {
     super(props);
     this.state = {
-      carto: true,
+      carto: false,
       sizeByBasic: true
     };
   }
@@ -106,6 +106,9 @@ class SimpleDorling extends React.Component {
           projectionType={geoNaturalEarth1}
           data={countryData}
           mapData={geodata}
+          onHover={(d) => {
+            console.log('hover d', d);
+          }}
           label={d =>
             (d.id ? (
               <text

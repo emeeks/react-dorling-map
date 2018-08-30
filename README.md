@@ -25,3 +25,4 @@ A React component that takes the following properties and produces either a map 
 * **circleStyle**: An React style object or a function that returns a React style object to style the map features when in map mode. Defaults to the `geoStyle` setting if no value is sent.
 * **zoomToFit**: Zoom the dorling cartogram so that it fits the display area otherwise it will be closer to the centroids of the features in the map mode.
 * **label**: Set to true to show simple labels based on the `id` property of the features or set to a function that takes the feature and returns a string or SVG JSX.
+* **onHover**: Takes a function that is passed the hovered feature (uses the path in map mode or a voronoi of centroids in cartogram mode) like `d => {console.log(d)}`. There's no built-in tooltips but the passed element has x and y information for you to generate tooltips. Passed `undefined` onMouseLeave.

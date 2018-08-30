@@ -35,7 +35,8 @@ class DorlingCartogram extends React.Component {
       zoomToFit,
       sizeBy,
       onHover,
-      showBorders
+      showBorders,
+      projectionType
     } = this.props;
     const { circleStyleFn, geoStyleFn, labelFn } = this.state;
 
@@ -55,6 +56,7 @@ class DorlingCartogram extends React.Component {
             onHover={onHover}
             passVoronoiPoints={this.passVoronoiPoints}
             showBorders={showBorders}
+            projectionType={projectionType}
           />
           {onHover &&
             cartogram === true &&

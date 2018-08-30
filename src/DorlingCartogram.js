@@ -43,21 +43,23 @@ class DorlingCartogram extends React.Component {
     return (
       <div>
         <svg width={size[0]} height={size[1]}>
-          <VisualizationLayer
-            data={data}
-            cartogram={cartogram}
-            size={size}
-            mapData={mapData}
-            circleStyleFn={circleStyleFn}
-            geoStyleFn={geoStyleFn}
-            labelFn={labelFn}
-            zoomToFit={zoomToFit}
-            sizeBy={sizeBy}
-            onHover={onHover}
-            passVoronoiPoints={this.passVoronoiPoints}
-            showBorders={showBorders}
-            projectionType={projectionType}
-          />
+          {mapData && (
+            <VisualizationLayer
+              data={data}
+              cartogram={cartogram}
+              size={size}
+              mapData={mapData}
+              circleStyleFn={circleStyleFn}
+              geoStyleFn={geoStyleFn}
+              labelFn={labelFn}
+              zoomToFit={zoomToFit}
+              sizeBy={sizeBy}
+              onHover={onHover}
+              passVoronoiPoints={this.passVoronoiPoints}
+              showBorders={showBorders}
+              projectionType={projectionType}
+            />
+          )}
           {onHover &&
             cartogram === true &&
             this.state.voronoiPoints && (

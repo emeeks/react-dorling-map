@@ -209,14 +209,13 @@ class VisualizationLayer extends React.Component {
       d.toCartogramStyle = interpolateStyles(geoStyleD, circleStyleD);
       d.toMapStyle = interpolateStyles(circleStyleD, geoStyleD);
     });
-    this.props.passVoronoiPoints(mappedFeatures)
     return mappedFeatures;
   })
 
   cartogramOrMap = (morphingDirection = 'toCartogram', features) => {
     const { transitionSeconds = 1 } = this.props;
     const counter = { var: 0 };
-    const paths = this.svg.querySelectorAll('path');
+    const paths = this.svg.querySelectorAll('path.cartogram-element');
     const labels = this.svg.querySelectorAll('.cartogram-label');
     labels &&
       labels.forEach((label, labelI) => {
@@ -252,6 +251,9 @@ class VisualizationLayer extends React.Component {
       }
     });
   }
+  componentDidMount() {
+    this.props.passVoronoiPoints(this.forceSimulateCartogram(this.props.sizeBy, this.props.data));
+  }
 
   shouldComponentUpdate(nextProps) {
     const found = this.state.features.find((d, i) =>
@@ -280,8 +282,12 @@ class VisualizationLayer extends React.Component {
       geoStyleFn,
       circleStyleFn,
       labelFn,
-      onHover
+      onHover,
+      showBorders,
+      zoomToFit
     } = this.props;
+
+    const { featureEdges } = this.state;
 
     const sizedFeatures = this.forceSimulateCartogram(sizeBy, data);
 
@@ -296,7 +302,29 @@ class VisualizationLayer extends React.Component {
 
     return (
       <g className="visualization-layer" ref={ref => (this.svg = ref)}>
+        {!zoomToFit &&
+          showBorders &&
+          featureEdges.map((f, i) => (
+            <path
+              key={`cartogram-border-line-${i}`}
+              stroke="#DDD"
+              d={`M${f.source.x},${f.source.y}L${f.target.x},${f.target.y}`}
+            />
+          ))}
         {sizedFeatures.map((f, i) => {
+          return (
+              <path
+               key={`cartogram-element-${f.id || i}`}
+                className="cartogram-element"
+                fill="gold"
+                stroke="black"
+                d={cartogram ? f.circlePath : f.geoPath}
+                style={cartogram ? circleStyleFn(f) : geoStyleFn(f)}
+                {...hoverEvents(f)}
+              />
+          );
+        })}
+                {labelFn && sizedFeatures.map((f, i) => {
           let label = labelFn && labelFn(f);
           if (typeof label === 'string' || typeof label === 'number') {
             label = (
@@ -306,16 +334,8 @@ class VisualizationLayer extends React.Component {
             );
           }
           return (
-            <g key={`cartogram-element-${f.id || i}`}>
-              <path
-                fill="gold"
-                stroke="black"
-                d={cartogram ? f.circlePath : f.geoPath}
-                style={cartogram ? circleStyleFn(f) : geoStyleFn(f)}
-                {...hoverEvents(f)}
-              />
-              {
                 <g
+                key={`cartogram-label-${f.id || i}`}
                   className="cartogram-label"
                   transform={`translate(${cartogram ? f.x : f.centroid[0]},${
                     cartogram ? f.y : f.centroid[1]
@@ -323,8 +343,6 @@ class VisualizationLayer extends React.Component {
                 >
                   {label}
                 </g>
-              }
-            </g>
           );
         })}
       </g>

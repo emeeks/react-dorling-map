@@ -34,7 +34,8 @@ class DorlingCartogram extends React.Component {
       mapData,
       zoomToFit,
       sizeBy,
-      onHover
+      onHover,
+      showBorders
     } = this.props;
     const { circleStyleFn, geoStyleFn, labelFn } = this.state;
 
@@ -53,8 +54,10 @@ class DorlingCartogram extends React.Component {
             sizeBy={sizeBy}
             onHover={onHover}
             passVoronoiPoints={this.passVoronoiPoints}
+            showBorders={showBorders}
           />
-          {cartogram === true &&
+          {onHover &&
+            cartogram === true &&
             this.state.voronoiPoints && (
               <InteractionLayer
                 size={size}

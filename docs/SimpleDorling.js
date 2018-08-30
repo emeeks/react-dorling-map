@@ -6,6 +6,8 @@ import geodata from './world.json';
 const dynamicSize = (d, i) => (d.watchers && d.watchers / 10) || i / 20 + 1;
 const staticSize = d => (d.bbhouseholds && d.bbhouseholds / 10) || 0;
 const countryData = [
+  { id: 'EC', bbhouseholds: 500, watchers: 500 },
+  { id: 'VE', bbhouseholds: 500, watchers: 500 },
   { id: 'PE', bbhouseholds: 100, watchers: 50 },
   { id: 'PH', bbhouseholds: 90, watchers: 40 },
   { id: 'PN', bbhouseholds: 80, watchers: 30 },
@@ -94,7 +96,8 @@ class SimpleDorling extends React.Component {
           Change SizeBy
         </button>
         <DorlingCartogram
-          zoomToFit
+          zoomToFit={false}
+          //          showBorders
           cartogram={this.state.carto}
           //          circleStyle={{ fill: 'red' }}
           geoStyle={d =>

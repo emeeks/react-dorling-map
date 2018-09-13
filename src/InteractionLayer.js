@@ -15,7 +15,9 @@ class InteractionLayer extends React.Component {
         {voronoiCells.map((d, i) => (
           <path
             key={`voronoi-${i}`}
-            fillOpacity={0}
+            fillOpacity={0.5}
+            fill="red"
+            stroke="red"
             onMouseEnter={() => onHover(points[i])}
             onMouseLeave={() => onHover()}
             d={`M${d.map(p => p.join(',')).join('L')}Z`}

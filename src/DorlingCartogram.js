@@ -22,13 +22,17 @@ class DorlingCartogram extends React.Component {
     };
   }
 
+  static defaultProps = {
+    size: [500, 500]
+  }
+
   passVoronoiPoints = (points) => {
     this.setState({ voronoiPoints: points });
   }
 
   render() {
     const {
-      size = [500, 500],
+      size,
       data,
       cartogram,
       mapData,

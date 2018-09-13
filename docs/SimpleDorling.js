@@ -110,7 +110,7 @@ class SimpleDorling extends React.Component {
           data={countryData}
           mapData={geodata}
           onHover={(d) => {
-            console.log('hover d', d);
+            console.info('hover d', d);
           }}
           label={d =>
             (d.id ? (

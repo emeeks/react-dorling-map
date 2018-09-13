@@ -255,6 +255,16 @@ class VisualizationLayer extends React.Component {
     this.props.passVoronoiPoints(this.forceSimulateCartogram(this.props.sizeBy, this.props.data));
   }
 
+  componentDidUpdate(prevProps) {
+    const found = this.state.features.find((d, i) =>
+      sizeByWrapper(this.props.sizeBy)(d, i) !==
+        sizeByWrapper(prevProps.sizeBy)(d, i));
+
+    if (found) {
+      this.props.passVoronoiPoints(this.forceSimulateCartogram(this.props.sizeBy, this.props.data));
+    }
+  }
+
   shouldComponentUpdate(nextProps) {
     const found = this.state.features.find((d, i) =>
       sizeByWrapper(this.props.sizeBy)(d, i) !==
@@ -311,40 +321,39 @@ class VisualizationLayer extends React.Component {
               d={`M${f.source.x},${f.source.y}L${f.target.x},${f.target.y}`}
             />
           ))}
-        {sizedFeatures.map((f, i) => {
-          return (
-              <path
-               key={`cartogram-element-${f.id || i}`}
-                className="cartogram-element"
-                fill="gold"
-                stroke="black"
-                d={cartogram ? f.circlePath : f.geoPath}
-                style={cartogram ? circleStyleFn(f) : geoStyleFn(f)}
-                {...hoverEvents(f)}
-              />
-          );
-        })}
-                {labelFn && sizedFeatures.map((f, i) => {
-          let label = labelFn && labelFn(f);
-          if (typeof label === 'string' || typeof label === 'number') {
-            label = (
-              <text y={6} textAnchor="middle">
-                {label}
-              </text>
-            );
-          }
-          return (
-                <g
-                key={`cartogram-label-${f.id || i}`}
-                  className="cartogram-label"
-                  transform={`translate(${cartogram ? f.x : f.centroid[0]},${
-                    cartogram ? f.y : f.centroid[1]
-                  })`}
-                >
+        {sizedFeatures.map((f, i) => (
+          <path
+            key={`cartogram-element-${f.id || i}`}
+            className="cartogram-element"
+            fill="gold"
+            stroke="black"
+            d={cartogram ? f.circlePath : f.geoPath}
+            style={cartogram ? circleStyleFn(f) : geoStyleFn(f)}
+            {...hoverEvents(f)}
+          />
+        ))}
+        {labelFn &&
+          sizedFeatures.map((f, i) => {
+            let label = labelFn && labelFn(f);
+            if (typeof label === 'string' || typeof label === 'number') {
+              label = (
+                <text y={6} textAnchor="middle">
                   {label}
-                </g>
-          );
-        })}
+                </text>
+              );
+            }
+            return (
+              <g
+                key={`cartogram-label-${f.id || i}`}
+                className="cartogram-label"
+                transform={`translate(${cartogram ? f.x : f.centroid[0]},${
+                  cartogram ? f.y : f.centroid[1]
+                })`}
+              >
+                {label}
+              </g>
+            );
+          })}
       </g>
     );
   }

@@ -1,6 +1,6 @@
 import React from 'react';
 import { geoPath, geoMercator } from 'd3-geo';
-import { toCircle, fromCircle } from 'flubber';
+import { toCircle, fromCircle, combine } from 'flubber';
 import { interpolateHsl, interpolateNumber } from 'd3-interpolate';
 import { scaleLinear } from 'd3-scale';
 import TweenMax from 'gsap/TweenMax';
@@ -103,6 +103,12 @@ class VisualizationLayer extends React.Component {
           .filter(d => d.length > 0)
           .sort((a, b) => b.length - a.length)
           .join('M')}`;
+
+        d.geoPathMultiple = d.geoPath.split('M').filter((d, i) => i !== 0);
+        d.geoPathMultiple = d.geoPathMultiple.map(gp => `M${gp}`);
+        console.log('d.geoPathMultiple', d.geoPathMultiple);
+        console.log('d.circlePath', d.circlePath);
+        console.log('d.geoPath', d.geoPath);
       }
 
       d.properties.neighbors &&
@@ -204,7 +210,9 @@ class VisualizationLayer extends React.Component {
       }
 
       d.circlePath = generateCirclePath(d.x, d.y, d.r);
-      d.toCartogram = toCircle(d.geoPath, d.x, d.y, d.r);
+      d.toCartogram = d.geoPathMultiple
+        ? combine(d.geoPathMultiple, d.circlePath)
+        : toCircle(d.geoPath, d.x, d.y, d.r);
       d.toMap = fromCircle(d.x, d.y, d.r, d.geoPath);
       d.toCartogramStyle = interpolateStyles(geoStyleD, circleStyleD);
       d.toMapStyle = interpolateStyles(circleStyleD, geoStyleD);

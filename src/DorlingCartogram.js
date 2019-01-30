@@ -40,7 +40,10 @@ class DorlingCartogram extends React.Component {
       sizeBy,
       onHover,
       showBorders,
-      projectionType
+      projectionType,
+      customMark,
+      customMarkTransition,
+      transitionSeconds
     } = this.props;
     const { circleStyleFn, geoStyleFn, labelFn } = this.state;
 
@@ -62,17 +65,18 @@ class DorlingCartogram extends React.Component {
               passVoronoiPoints={this.passVoronoiPoints}
               showBorders={showBorders}
               projectionType={projectionType}
+              customMark={customMark}
+              transitionSeconds={transitionSeconds}
+              customMarkTransition={customMarkTransition}
             />
           )}
-          {onHover &&
-            cartogram === true &&
-            this.state.voronoiPoints && (
-              <InteractionLayer
-                size={size}
-                points={this.state.voronoiPoints}
-                onHover={onHover}
-              />
-            )}
+          {onHover && cartogram === true && this.state.voronoiPoints && (
+            <InteractionLayer
+              size={size}
+              points={this.state.voronoiPoints}
+              onHover={onHover}
+            />
+          )}
         </svg>
       </div>
     );

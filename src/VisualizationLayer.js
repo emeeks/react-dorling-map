@@ -1,6 +1,6 @@
 import React from 'react';
 import { geoPath, geoMercator } from 'd3-geo';
-import { toCircle, fromCircle } from 'flubber';
+import { toCircle, fromCircle, combine, separate } from 'flubber';
 import { interpolateHsl, interpolateNumber } from 'd3-interpolate';
 import { scaleLinear } from 'd3-scale';
 import TweenMax from 'gsap/TweenMax';
@@ -18,18 +18,24 @@ const tweenableColors = { fill: true, stroke: true };
 const interpolateStyles = (previousStyle, nextStyle) => {
   const pKeys = Object.keys(previousStyle);
   const nKeys = Object.keys(nextStyle);
-  const styleKeys = [...pKeys, nKeys].reduce(
+  const styleKeys = [...pKeys, ...nKeys].reduce(
     (p, c) => (p.indexOf(c) !== -1 ? p : [...p, c]),
     []
   );
+
   const styleInterpolators = {};
 
   styleKeys.forEach((styleKey) => {
     if (tweenableColors[styleKey]) {
-      styleInterpolators[styleKey] = interpolateHsl(
-        previousStyle[styleKey] || 'white',
-        nextStyle[styleKey] || 'white'
-      );
+      if (previousStyle[styleKey] === "none" || nextStyle[styleKey] === "none") {
+        styleInterpolators[styleKey] = () => "none"
+      }
+      else {
+        styleInterpolators[styleKey] = interpolateHsl(
+          previousStyle[styleKey] || 'white',
+          nextStyle[styleKey] || 'white'
+        );  
+      }
     } else {
       styleInterpolators[styleKey] = interpolateNumber(
         previousStyle[styleKey] || 0,
@@ -40,7 +46,23 @@ const interpolateStyles = (previousStyle, nextStyle) => {
   return styleInterpolators;
 };
 
-const generateCirclePath = (cx, cy, r) =>
+function pointOnArcAtAngle(center, angle, distance) {
+  const radians = Math.PI * (angle + 0.75) * 2;
+
+  const xPosition = center[0] + distance * Math.cos(radians);
+  const yPosition = center[1] + distance * Math.sin(radians);
+
+  return `${xPosition},${yPosition}`;
+}
+
+const generateCirclePath = (cx, cy, r, points = 40) => {
+  r = Math.max(r, 0.5);
+  const generatedPoints = Array.from(Array(points), (d, i) =>
+    pointOnArcAtAngle([cx, cy], i / points, r));
+  return `M${generatedPoints.join('L')}Z`;
+};
+
+const generateRealCirclePath = (cx, cy, r) =>
   `${[
     'M',
     cx - r,
@@ -66,10 +88,7 @@ const generateCirclePath = (cx, cy, r) =>
 const sizeByWrapper = sizeBy =>
   (typeof sizeBy === 'function' ? sizeBy : d => d[sizeBy]);
 
-class VisualizationLayer extends React.Component {
-  constructor(props) {
-    const { size = [500, 500], projectionType = geoMercator, mapData } = props;
-
+  const calculateFeatures = ({ size, projectionType, mapData }) => {
     const features = mapData;
 
     features.forEach(({ geometry }) => {
@@ -91,6 +110,7 @@ class VisualizationLayer extends React.Component {
 
     const featureEdges = [];
 
+
     features.forEach((d, i) => {
       d.centroid = pathGenerator.centroid(d);
       d.geoPath = pathGenerator(d);
@@ -103,6 +123,9 @@ class VisualizationLayer extends React.Component {
           .filter(d => d.length > 0)
           .sort((a, b) => b.length - a.length)
           .join('M')}`;
+
+        d.geoPathMultiple = d.geoPath.split('M').filter((d, i) => i !== 0);
+        d.geoPathMultiple = d.geoPathMultiple.map(gp => `M${gp}`).reverse();
       }
 
       d.properties.neighbors &&
@@ -111,21 +134,29 @@ class VisualizationLayer extends React.Component {
         });
     });
 
-    super(props);
-    this.state = {
-      features,
-      featureEdges
-    };
+    return { features,
+    featureEdges }
   }
 
-  forceSimulateCartogram = memoize((sizeBy = () => 5, data = []) => {
+class VisualizationLayer extends React.Component {
+  constructor(props) {
+    const { size = [500, 500], projectionType = geoMercator, mapData } = props;
+
+    
+
+    super(props);
+    this.state = calculateFeatures({ size, projectionType, mapData })
+  }
+
+  forceSimulateCartogram = memoize((sizeBy = () => 5, data = [], width = 500, height = 500) => {
     const { features, featureEdges } = this.state;
     const {
-      size = [500, 500],
       zoomToFit,
       geoStyleFn,
       circleStyleFn
     } = this.props;
+
+    const size = [width, height]
 
     const mappedFeatures = features.map((d, i) => {
       const correspondingDataFeature = data.find(p => p.id === d.id);
@@ -204,8 +235,15 @@ class VisualizationLayer extends React.Component {
       }
 
       d.circlePath = generateCirclePath(d.x, d.y, d.r);
-      d.toCartogram = toCircle(d.geoPath, d.x, d.y, d.r);
-      d.toMap = fromCircle(d.x, d.y, d.r, d.geoPath);
+      d.circlePathReal = generateRealCirclePath(d.x, d.y, d.r);
+      d.toCartogram = d.geoPathMultiple
+        ? combine(d.geoPathMultiple, d.circlePath)
+        : toCircle(d.geoPath, d.x, d.y, d.r);
+
+      d.toMap = d.geoPathMultiple
+        ? separate(d.circlePath, d.geoPathMultiple)
+        : fromCircle(d.x, d.y, d.r, d.geoPath);
+
       d.toCartogramStyle = interpolateStyles(geoStyleD, circleStyleD);
       d.toMapStyle = interpolateStyles(circleStyleD, geoStyleD);
     });
@@ -213,10 +251,19 @@ class VisualizationLayer extends React.Component {
   })
 
   cartogramOrMap = (morphingDirection = 'toCartogram', features) => {
-    const { transitionSeconds = 1 } = this.props;
+    const svg = this.svg
+
+    if (morphingDirection === "toMap") {
+      svg.querySelectorAll('.react-dorling-cartogram-custom-mark')
+      .forEach(node => {
+        node.style.display = "none"
+        node.style.opacity = 0
+        })
+    }
+    const { transitionSeconds = 1, customMark, customMarkTransition = 0.5 } = this.props;
     const counter = { var: 0 };
-    const paths = this.svg.querySelectorAll('path.cartogram-element');
-    const labels = this.svg.querySelectorAll('.cartogram-label');
+    const paths = svg.querySelectorAll('path.cartogram-element');
+    const labels = svg.querySelectorAll('.cartogram-label');
     labels &&
       labels.forEach((label, labelI) => {
         const labelFeature = features[labelI];
@@ -233,9 +280,30 @@ class VisualizationLayer extends React.Component {
       var: 100,
       fill: 'green',
       onUpdate() {
+        if (counter.var === 100 && morphingDirection === 'toCartogram') {
+          svg.querySelectorAll('.react-dorling-cartogram-custom-mark')
+         .forEach(node => {
+          node.style.display = "block"
+          TweenMax.to(node, customMarkTransition, {
+            opacity: 1
+          });
+          })
+        }
         paths.forEach((path, pathI) => {
           if (counter.var === 100 && morphingDirection === 'toMap') {
             path.setAttribute('d', features[pathI].geoPath);
+          } else if (
+            counter.var === 100 &&
+            morphingDirection === 'toCartogram'
+          ) {
+            path.setAttribute('d', features[pathI].circlePathReal);    
+          } else if (features[pathI].geoPathMultiple) {
+            path.setAttribute(
+              'd',
+              features[pathI][morphingDirection]
+                .map(d => d(counter.var / 100))
+                .join(' ')
+            );
           } else {
             path.setAttribute(
               'd',
@@ -252,23 +320,39 @@ class VisualizationLayer extends React.Component {
     });
   }
   componentDidMount() {
-    this.props.passVoronoiPoints(this.forceSimulateCartogram(this.props.sizeBy, this.props.data));
+    this.props.passVoronoiPoints(this.forceSimulateCartogram(this.props.sizeBy, this.props.data, this.props.size[0], this.props.size[1]));
+    if (!this.props.cartogram) {
+      this.svg.querySelectorAll('.react-dorling-cartogram-custom-mark')
+      .forEach(node => {
+        node.style.display = "none"
+        node.style.opacity = 0
+        })  
+    }
+  }
+
+  componentWillReceiveProps(nextProps) {
+    const { size = [500, 500], projectionType = geoMercator, mapData } = nextProps;
+
+    if (this.props.size[0] !== size[0] || this.props.size[1] !== size[1]) {
+      this.setState(calculateFeatures({ size, projectionType, mapData }))
+    }
+
   }
 
   componentDidUpdate(prevProps) {
     const found = this.state.features.find((d, i) =>
       sizeByWrapper(this.props.sizeBy)(d, i) !==
-        sizeByWrapper(prevProps.sizeBy)(d, i));
+        sizeByWrapper(prevProps.sizeBy)(d, i))  || this.props.size[0] !== prevProps.size[0] || this.props.size[1] !== prevProps.size[1] || this.props.customMark !== prevProps.customMark
 
     if (found) {
-      this.props.passVoronoiPoints(this.forceSimulateCartogram(this.props.sizeBy, this.props.data));
+      this.props.passVoronoiPoints(this.forceSimulateCartogram(this.props.sizeBy, this.props.data, this.props.size[0], this.props.size[1]));
     }
   }
 
   shouldComponentUpdate(nextProps) {
     const found = this.state.features.find((d, i) =>
       sizeByWrapper(this.props.sizeBy)(d, i) !==
-        sizeByWrapper(nextProps.sizeBy)(d, i));
+        sizeByWrapper(nextProps.sizeBy)(d, i)) || this.props.size[0] !== nextProps.size[0] || this.props.size[1] !== nextProps.size[1] || this.props.customMark !== nextProps.customMark
     if (found) {
       return true;
     }
@@ -277,7 +361,7 @@ class VisualizationLayer extends React.Component {
       const direction = nextProps.cartogram ? 'toCartogram' : 'toMap';
       this.cartogramOrMap(
         direction,
-        this.forceSimulateCartogram(nextProps.sizeBy, nextProps.data)
+        this.forceSimulateCartogram(nextProps.sizeBy, nextProps.data, nextProps.size[0], nextProps.size[1])
       );
       return false;
     }
@@ -294,12 +378,14 @@ class VisualizationLayer extends React.Component {
       labelFn,
       onHover,
       showBorders,
-      zoomToFit
+      zoomToFit,
+      customMark,
+      size
     } = this.props;
 
     const { featureEdges } = this.state;
 
-    const sizedFeatures = this.forceSimulateCartogram(sizeBy, data);
+    const sizedFeatures = this.forceSimulateCartogram(sizeBy, data, size[0], size[1]);
 
     let hoverEvents = () => {};
 
@@ -317,20 +403,21 @@ class VisualizationLayer extends React.Component {
           featureEdges.map((f, i) => (
             <path
               key={`cartogram-border-line-${i}`}
-              stroke="#DDD"
               d={`M${f.source.x},${f.source.y}L${f.target.x},${f.target.y}`}
             />
           ))}
         {sizedFeatures.map((f, i) => (
+          <g key={`cartogram-container-${f.id || i}`}>
           <path
             key={`cartogram-element-${f.id || i}`}
             className="cartogram-element"
             fill="gold"
-            stroke="black"
             d={cartogram ? f.circlePath : f.geoPath}
             style={cartogram ? circleStyleFn(f) : geoStyleFn(f)}
             {...hoverEvents(f)}
           />
+          {customMark && <g className="react-dorling-cartogram-custom-mark">{customMark(f,i)}</g>}
+          </g>
         ))}
         {labelFn &&
           sizedFeatures.map((f, i) => {

@@ -1,7 +1,29 @@
 import React from 'react';
 import DorlingCartogram from '../src/DorlingCartogram';
+import ResponsiveDorlingCartogram from '../src/ResponsiveDorlingCartogram';
 import geoNaturalEarth1 from 'd3-geo/src/projection/naturalEarth1';
 import geodata from './world.json';
+import { pie, arc } from 'd3-shape';
+
+const customMark = (d) => {
+  if ((!d.bbhouseholds && !d.watchers) || d.r < 4) {
+    return <circle fill="gray" cx={d.x} cy={d.y} r={d.r} />;
+  }
+  const pieLayout = pie();
+  const piePieces = pieLayout([d.bbhouseholds, d.watchers]);
+
+  const arcGenerator = arc()
+    .outerRadius(d.r - 4)
+    .innerRadius(d.r > 10 ? 5 : 0);
+
+  return (
+    <g transform={`translate(${d.x},${d.y})`}>
+      <circle r={d.r} fill="purple" />
+      <path d={arcGenerator(piePieces[0])} fill="gold" stroke="white" />
+      <path d={arcGenerator(piePieces[1])} fill="brown" stroke="white" />
+    </g>
+  );
+};
 
 const dynamicSize = (d, i) => (d.watchers && d.watchers / 10) || i / 20 + 1;
 const staticSize = d => (d.bbhouseholds && d.bbhouseholds / 10) || 0;
@@ -78,7 +100,7 @@ class SimpleDorling extends React.Component {
     super(props);
     this.state = {
       carto: false,
-      sizeByBasic: true
+      sizeByBasic: false
     };
   }
 
@@ -95,15 +117,19 @@ class SimpleDorling extends React.Component {
         >
           Change SizeBy
         </button>
-        <DorlingCartogram
-          zoomToFit={false}
+
+        <ResponsiveDorlingCartogram
+          responsiveWidth
           //          showBorders
           cartogram={this.state.carto}
           //          circleStyle={{ fill: 'red' }}
+          customMark={customMark}
           geoStyle={d =>
-            (d.bbhouseholds ? { fill: 'purple' } : { fill: 'orange' })
+            (d.bbhouseholds
+              ? { fill: 'purple', stroke: 'none' }
+              : { fill: 'orange', stroke: 'none' })
           }
-          transitionSeconds={0.5}
+          transitionSeconds={2}
           size={[800, 600]}
           sizeBy={this.state.sizeByBasic ? dynamicSize : staticSize}
           projectionType={geoNaturalEarth1}
@@ -112,7 +138,7 @@ class SimpleDorling extends React.Component {
           onHover={(d) => {
             console.info('hover d', d);
           }}
-          label={d =>
+          /*          label={d =>
             (d.id ? (
               <text
                 fill="white"
@@ -126,7 +152,7 @@ class SimpleDorling extends React.Component {
             ) : (
               ''
             ))
-          }
+          } */
         />
         <pre>
           {`import React from 'react';

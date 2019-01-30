@@ -1,4 +1,5 @@
 // this should be the entry point to your library
 module.exports = {
-  DorlingCartogram: require('./DorlingCartogram').default
+  DorlingCartogram: require('./DorlingCartogram').default,
+  ResponsiveDorlingCartogram: require('./ResponsiveDorlingCartogram').default
 };

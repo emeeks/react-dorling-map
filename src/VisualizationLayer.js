@@ -55,7 +55,7 @@ function pointOnArcAtAngle(center, angle, distance) {
   return `${xPosition},${yPosition}`;
 }
 
-const generateCirclePath = (cx, cy, r, points = 40) => {
+const generateCirclePath = (cx, cy, r, points = 20) => {
   r = Math.max(r, 0.5);
   const generatedPoints = Array.from(Array(points), (d, i) =>
     pointOnArcAtAngle([cx, cy], i / points, r));
@@ -153,7 +153,8 @@ class VisualizationLayer extends React.Component {
     const {
       zoomToFit,
       geoStyleFn,
-      circleStyleFn
+      circleStyleFn,
+      numberOfCirclePoints
     } = this.props;
 
     const size = [width, height]
@@ -234,7 +235,7 @@ class VisualizationLayer extends React.Component {
         d.r = changeRate * d.r;
       }
 
-      d.circlePath = generateCirclePath(d.x, d.y, d.r);
+      d.circlePath = generateCirclePath(d.x, d.y, d.r, numberOfCirclePoints);
       d.circlePathReal = generateRealCirclePath(d.x, d.y, d.r);
       d.toCartogram = d.geoPathMultiple
         ? combine(d.geoPathMultiple, d.circlePath)

@@ -127,10 +127,11 @@ const sizeByWrapper = sizeBy =>
         d.geoPathMultiple = d.geoPath.split('M').filter((d, i) => i !== 0);
         d.geoPathMultiple = d.geoPathMultiple.map(gp => `M${gp}`).reverse();
       }
-
       d.properties.neighbors &&
         d.properties.neighbors.forEach((target) => {
-          featureEdges.push({ source: d, target: features[target] });
+          if (features[target]) {
+            featureEdges.push({ source: d, target: features[target] });
+          }
         });
     });
 
@@ -235,7 +236,7 @@ class VisualizationLayer extends React.Component {
         d.r = changeRate * d.r;
       }
 
-      d.circlePath = generateCirclePath(d.x, d.y, d.r, numberOfCirclePoints);
+      d.circlePath = generateCirclePath(d.x, d.y, d.r, numberOfCirclePoints || Math.max(20, d.geoPathMultiple ? d.geoPathMultiple.length * 2 : 20));
       d.circlePathReal = generateRealCirclePath(d.x, d.y, d.r);
       d.toCartogram = d.geoPathMultiple
         ? combine(d.geoPathMultiple, d.circlePath)
@@ -334,7 +335,7 @@ class VisualizationLayer extends React.Component {
   componentWillReceiveProps(nextProps) {
     const { size = [500, 500], projectionType = geoMercator, mapData } = nextProps;
 
-    if (this.props.size[0] !== size[0] || this.props.size[1] !== size[1]) {
+    if (this.props.size[0] !== size[0] || this.props.size[1] !== size[1] || this.props.mapData !== mapData) {
       this.setState(calculateFeatures({ size, projectionType, mapData }))
     }
 

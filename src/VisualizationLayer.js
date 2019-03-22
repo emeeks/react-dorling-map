@@ -27,14 +27,16 @@ const interpolateStyles = (previousStyle, nextStyle) => {
 
   styleKeys.forEach((styleKey) => {
     if (tweenableColors[styleKey]) {
-      if (previousStyle[styleKey] === "none" || nextStyle[styleKey] === "none") {
-        styleInterpolators[styleKey] = () => "none"
-      }
-      else {
+      if (
+        previousStyle[styleKey] === 'none' ||
+        nextStyle[styleKey] === 'none'
+      ) {
+        styleInterpolators[styleKey] = () => 'none';
+      } else {
         styleInterpolators[styleKey] = interpolateHsl(
           previousStyle[styleKey] || 'white',
           nextStyle[styleKey] || 'white'
-        );  
+        );
       }
     } else {
       styleInterpolators[styleKey] = interpolateNumber(
@@ -88,68 +90,61 @@ const generateRealCirclePath = (cx, cy, r) =>
 const sizeByWrapper = sizeBy =>
   (typeof sizeBy === 'function' ? sizeBy : d => d[sizeBy]);
 
-  const calculateFeatures = ({ size, projectionType, mapData }) => {
-    const features = mapData;
+const calculateFeatures = ({ size, projectionType, mapData }) => {
+  const features = mapData;
 
-    features.forEach(({ geometry }) => {
-      if (geometry.type === 'MultiPolygon') {
-        geometry.coordinates = geometry.coordinates.sort((a, b) => b[0].length - a[0].length);
-      }
-    });
+  features.forEach(({ geometry }) => {
+    if (geometry.type === 'MultiPolygon') {
+      geometry.coordinates = geometry.coordinates.sort((a, b) => b[0].length - a[0].length);
+    }
+  });
 
-    const extentFeatures = {
-      type: 'GeometryCollection',
-      geometries: features.map(d => d.geometry)
-    };
+  const extentFeatures = {
+    type: 'GeometryCollection',
+    geometries: features.map(d => d.geometry)
+  };
 
-    const projection = projectionType().fitExtent(
-      [[0, 0], size],
-      extentFeatures
-    );
-    const pathGenerator = geoPath().projection(projection);
+  const projection = projectionType().fitExtent([[0, 0], size], extentFeatures);
+  const pathGenerator = geoPath().projection(projection);
 
-    const featureEdges = [];
+  const featureEdges = [];
 
+  features.forEach((d, i) => {
+    d.centroid = pathGenerator.centroid(d);
+    d.geoPath = pathGenerator(d);
+    d.x = d.centroid[0];
+    d.y = d.centroid[1];
 
-    features.forEach((d, i) => {
-      d.centroid = pathGenerator.centroid(d);
-      d.geoPath = pathGenerator(d);
-      d.x = d.centroid[0];
-      d.y = d.centroid[1];
+    if (d.geometry.type === 'MultiPolygon') {
+      d.geoPath = `M${d.geoPath
+        .split('M')
+        .filter(d => d.length > 0)
+        .sort((a, b) => b.length - a.length)
+        .join('M')}`;
 
-      if (d.geometry.type === 'MultiPolygon') {
-        d.geoPath = `M${d.geoPath
-          .split('M')
-          .filter(d => d.length > 0)
-          .sort((a, b) => b.length - a.length)
-          .join('M')}`;
+      d.geoPathMultiple = d.geoPath.split('M').filter((d, i) => i !== 0);
+      d.geoPathMultiple = d.geoPathMultiple.map(gp => `M${gp}`).reverse();
+    }
+    d.properties.neighbors &&
+      d.properties.neighbors.forEach((target) => {
+        if (features[target]) {
+          featureEdges.push({ source: d, target: features[target] });
+        }
+      });
+  });
 
-        d.geoPathMultiple = d.geoPath.split('M').filter((d, i) => i !== 0);
-        d.geoPathMultiple = d.geoPathMultiple.map(gp => `M${gp}`).reverse();
-      }
-      d.properties.neighbors &&
-        d.properties.neighbors.forEach((target) => {
-          if (features[target]) {
-            featureEdges.push({ source: d, target: features[target] });
-          }
-        });
-    });
-
-    return { features,
-    featureEdges }
-  }
+  return { features, featureEdges };
+};
 
 class VisualizationLayer extends React.Component {
   constructor(props) {
     const { size = [500, 500], projectionType = geoMercator, mapData } = props;
 
-    
-
     super(props);
-    this.state = calculateFeatures({ size, projectionType, mapData })
+    this.state = calculateFeatures({ size, projectionType, mapData });
   }
 
-  forceSimulateCartogram = memoize((sizeBy = () => 5, data = [], width = 500, height = 500) => {
+  forceSimulateCartogram = memoize((sizeBy = () => 5, data = [], width = 500, height = 500, mapData) => {
     const { features, featureEdges } = this.state;
     const {
       zoomToFit,
@@ -158,7 +153,7 @@ class VisualizationLayer extends React.Component {
       numberOfCirclePoints
     } = this.props;
 
-    const size = [width, height]
+    const size = [width, height];
 
     const mappedFeatures = features.map((d, i) => {
       const correspondingDataFeature = data.find(p => p.id === d.id);
@@ -236,7 +231,13 @@ class VisualizationLayer extends React.Component {
         d.r = changeRate * d.r;
       }
 
-      d.circlePath = generateCirclePath(d.x, d.y, d.r, numberOfCirclePoints || Math.max(20, d.geoPathMultiple ? d.geoPathMultiple.length * 2 : 20));
+      d.circlePath = generateCirclePath(
+        d.x,
+        d.y,
+        d.r,
+        numberOfCirclePoints ||
+            Math.max(20, d.geoPathMultiple ? d.geoPathMultiple.length * 2 : 20)
+      );
       d.circlePathReal = generateRealCirclePath(d.x, d.y, d.r);
       d.toCartogram = d.geoPathMultiple
         ? combine(d.geoPathMultiple, d.circlePath)
@@ -253,16 +254,21 @@ class VisualizationLayer extends React.Component {
   })
 
   cartogramOrMap = (morphingDirection = 'toCartogram', features) => {
-    const svg = this.svg
+    const svg = this.svg;
 
-    if (morphingDirection === "toMap") {
-      svg.querySelectorAll('.react-dorling-cartogram-custom-mark')
-      .forEach(node => {
-        node.style.display = "none"
-        node.style.opacity = 0
-        })
+    if (morphingDirection === 'toMap') {
+      svg
+        .querySelectorAll('.react-dorling-cartogram-custom-mark')
+        .forEach((node) => {
+          node.style.display = 'none';
+          node.style.opacity = 0;
+        });
     }
-    const { transitionSeconds = 1, customMark, customMarkTransition = 0.5 } = this.props;
+    const {
+      transitionSeconds = 1,
+      customMark,
+      customMarkTransition = 0.5
+    } = this.props;
     const counter = { var: 0 };
     const paths = svg.querySelectorAll('path.cartogram-element');
     const labels = svg.querySelectorAll('.cartogram-label');
@@ -283,13 +289,14 @@ class VisualizationLayer extends React.Component {
       fill: 'green',
       onUpdate() {
         if (counter.var === 100 && morphingDirection === 'toCartogram') {
-          svg.querySelectorAll('.react-dorling-cartogram-custom-mark')
-         .forEach(node => {
-          node.style.display = "block"
-          TweenMax.to(node, customMarkTransition, {
-            opacity: 1
-          });
-          })
+          svg
+            .querySelectorAll('.react-dorling-cartogram-custom-mark')
+            .forEach((node) => {
+              node.style.display = 'block';
+              TweenMax.to(node, customMarkTransition, {
+                opacity: 1
+              });
+            });
         }
         paths.forEach((path, pathI) => {
           if (counter.var === 100 && morphingDirection === 'toMap') {
@@ -298,7 +305,7 @@ class VisualizationLayer extends React.Component {
             counter.var === 100 &&
             morphingDirection === 'toCartogram'
           ) {
-            path.setAttribute('d', features[pathI].circlePathReal);    
+            path.setAttribute('d', features[pathI].circlePathReal);
           } else if (features[pathI].geoPathMultiple) {
             path.setAttribute(
               'd',
@@ -322,39 +329,68 @@ class VisualizationLayer extends React.Component {
     });
   }
   componentDidMount() {
-    this.props.passVoronoiPoints(this.forceSimulateCartogram(this.props.sizeBy, this.props.data, this.props.size[0], this.props.size[1]));
+    this.props.passVoronoiPoints(this.forceSimulateCartogram(
+      this.props.sizeBy,
+      this.props.data,
+      this.props.size[0],
+      this.props.size[1],
+      this.props.mapData
+    ));
     if (!this.props.cartogram) {
-      this.svg.querySelectorAll('.react-dorling-cartogram-custom-mark')
-      .forEach(node => {
-        node.style.display = "none"
-        node.style.opacity = 0
-        })  
+      this.svg
+        .querySelectorAll('.react-dorling-cartogram-custom-mark')
+        .forEach((node) => {
+          node.style.display = 'none';
+          node.style.opacity = 0;
+        });
     }
   }
 
   componentWillReceiveProps(nextProps) {
-    const { size = [500, 500], projectionType = geoMercator, mapData } = nextProps;
+    const {
+      size = [500, 500],
+      projectionType = geoMercator,
+      mapData
+    } = nextProps;
 
-    if (this.props.size[0] !== size[0] || this.props.size[1] !== size[1] || this.props.mapData !== mapData) {
-      this.setState(calculateFeatures({ size, projectionType, mapData }))
+    if (
+      this.props.size[0] !== size[0] ||
+      this.props.size[1] !== size[1] ||
+      this.props.mapData !== mapData
+    ) {
+      this.setState(calculateFeatures({ size, projectionType, mapData }));
     }
-
   }
 
   componentDidUpdate(prevProps) {
-    const found = this.state.features.find((d, i) =>
-      sizeByWrapper(this.props.sizeBy)(d, i) !==
-        sizeByWrapper(prevProps.sizeBy)(d, i))  || this.props.size[0] !== prevProps.size[0] || this.props.size[1] !== prevProps.size[1] || this.props.customMark !== prevProps.customMark
+    const found =
+      this.state.features.find((d, i) =>
+        sizeByWrapper(this.props.sizeBy)(d, i) !==
+          sizeByWrapper(prevProps.sizeBy)(d, i)) ||
+      this.props.size[0] !== prevProps.size[0] ||
+      this.props.size[1] !== prevProps.size[1] ||
+      this.props.customMark !== prevProps.customMark;
 
     if (found) {
-      this.props.passVoronoiPoints(this.forceSimulateCartogram(this.props.sizeBy, this.props.data, this.props.size[0], this.props.size[1]));
+      this.props.passVoronoiPoints(this.forceSimulateCartogram(
+        this.props.sizeBy,
+        this.props.data,
+        this.props.size[0],
+        this.props.size[1],
+        this.props.mapData
+      ));
     }
   }
 
   shouldComponentUpdate(nextProps) {
-    const found = this.state.features.find((d, i) =>
-      sizeByWrapper(this.props.sizeBy)(d, i) !==
-        sizeByWrapper(nextProps.sizeBy)(d, i)) || this.props.size[0] !== nextProps.size[0] || this.props.size[1] !== nextProps.size[1] || this.props.customMark !== nextProps.customMark
+    const found =
+      this.state.features.find((d, i) =>
+        sizeByWrapper(this.props.sizeBy)(d, i) !==
+          sizeByWrapper(nextProps.sizeBy)(d, i)) ||
+      this.props.size[0] !== nextProps.size[0] ||
+      this.props.size[1] !== nextProps.size[1] ||
+      this.props.customMark !== nextProps.customMark ||
+      this.props.mapData !== nextProps.mapData;
     if (found) {
       return true;
     }
@@ -363,7 +399,13 @@ class VisualizationLayer extends React.Component {
       const direction = nextProps.cartogram ? 'toCartogram' : 'toMap';
       this.cartogramOrMap(
         direction,
-        this.forceSimulateCartogram(nextProps.sizeBy, nextProps.data, nextProps.size[0], nextProps.size[1])
+        this.forceSimulateCartogram(
+          nextProps.sizeBy,
+          nextProps.data,
+          nextProps.size[0],
+          nextProps.size[1],
+          nextProps.mapData
+        )
       );
       return false;
     }
@@ -382,12 +424,19 @@ class VisualizationLayer extends React.Component {
       showBorders,
       zoomToFit,
       customMark,
-      size
+      size,
+      mapData
     } = this.props;
 
     const { featureEdges } = this.state;
 
-    const sizedFeatures = this.forceSimulateCartogram(sizeBy, data, size[0], size[1]);
+    const sizedFeatures = this.forceSimulateCartogram(
+      sizeBy,
+      data,
+      size[0],
+      size[1],
+      mapData
+    );
 
     let hoverEvents = () => {};
 
@@ -410,15 +459,22 @@ class VisualizationLayer extends React.Component {
           ))}
         {sizedFeatures.map((f, i) => (
           <g key={`cartogram-container-${f.id || i}`}>
-          <path
-            key={`cartogram-element-${f.id || i}`}
-            className="cartogram-element"
-            fill="gold"
-            d={cartogram ? f.circlePath : f.geoPath}
-            style={cartogram ? circleStyleFn(f) : geoStyleFn(f)}
-            {...hoverEvents(f)}
-          />
-          {customMark && <g className="react-dorling-cartogram-custom-mark">{customMark(f,i)}</g>}
+            <path
+              key={`cartogram-element-${f.id || i}`}
+              className="cartogram-element"
+              fill="gold"
+              d={cartogram ? f.circlePath : f.geoPath}
+              style={cartogram ? circleStyleFn(f) : geoStyleFn(f)}
+              {...hoverEvents(f)}
+            />
+            {customMark && (
+              <g
+                className="react-dorling-cartogram-custom-mark"
+                style={cartogram ? {} : { display: 'none', opacity: 0 }}
+              >
+                {customMark(f, i)}
+              </g>
+            )}
           </g>
         ))}
         {labelFn &&

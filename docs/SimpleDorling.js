@@ -5,6 +5,8 @@ import geoNaturalEarth1 from 'd3-geo/src/projection/naturalEarth1';
 import geodata from './world.json';
 import { pie, arc } from 'd3-shape';
 
+const secondGeoData = geodata.filter((d, i) => i < 10);
+
 const customMark = (d) => {
   if ((!d.bbhouseholds && !d.watchers) || d.r < 4) {
     return <circle fill="gray" cx={d.x} cy={d.y} r={d.r} />;
@@ -117,6 +119,13 @@ class SimpleDorling extends React.Component {
         >
           Change SizeBy
         </button>
+        <button
+          onClick={() =>
+            this.setState({ filteredGeodata: !this.state.filteredGeodata })
+          }
+        >
+          Change Geodata
+        </button>
 
         <ResponsiveDorlingCartogram
           responsiveWidth
@@ -134,7 +143,7 @@ class SimpleDorling extends React.Component {
           sizeBy={this.state.sizeByBasic ? dynamicSize : staticSize}
           projectionType={geoNaturalEarth1}
           data={countryData}
-          mapData={geodata}
+          mapData={this.state.filteredGeodata ? secondGeoData : geodata}
           onHover={(d) => {
             console.info('hover d', d);
           }}

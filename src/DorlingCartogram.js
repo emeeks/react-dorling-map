@@ -44,7 +44,8 @@ class DorlingCartogram extends React.Component {
       customMark,
       customMarkTransition,
       transitionSeconds,
-      numberOfCirclePoints
+      numberOfCirclePoints,
+      circlePadding = 0
     } = this.props;
     const { circleStyleFn, geoStyleFn, labelFn } = this.state;
 
@@ -70,6 +71,7 @@ class DorlingCartogram extends React.Component {
               transitionSeconds={transitionSeconds}
               customMarkTransition={customMarkTransition}
               numberOfCirclePoints={numberOfCirclePoints}
+              circlePadding={circlePadding}
             />
           )}
           {onHover && cartogram === true && this.state.voronoiPoints && (

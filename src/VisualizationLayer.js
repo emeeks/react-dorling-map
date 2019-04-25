@@ -116,11 +116,6 @@ const calculateFeatures = ({ size, projectionType, mapData }) => {
     d.y = d.centroid[1];
 
     if (d.geometry.type === 'MultiPolygon') {
-      d.geoPath = `M${d.geoPath
-        .split('M')
-        .filter(d => d.length > 0)
-        .sort((a, b) => b.length - a.length)
-        .join('M')}`;
 
       d.geoPathMultiple = d.geoPath.split('M').filter((d, i) => i !== 0);
       d.geoPathMultiple = d.geoPathMultiple.map(gp => `M${gp}`).reverse();
@@ -141,8 +136,10 @@ class VisualizationLayer extends React.Component {
     const { size = [500, 500], projectionType = geoMercator, mapData } = props;
 
     super(props);
-    this.state = calculateFeatures({ size, projectionType, mapData });
+    this.state = { forceUpdate: false, ...calculateFeatures({ size, projectionType, mapData })}
   }
+
+  forceUpdateTimeout = null
 
   forceSimulateCartogram = memoize((sizeBy = () => 5, data = [], width = 500, height = 500, mapData) => {
     const { features, featureEdges } = this.state;
@@ -150,7 +147,8 @@ class VisualizationLayer extends React.Component {
       zoomToFit,
       geoStyleFn,
       circleStyleFn,
-      numberOfCirclePoints
+      numberOfCirclePoints,
+      circlePadding
     } = this.props;
 
     const size = [width, height];
@@ -205,13 +203,13 @@ class VisualizationLayer extends React.Component {
     if (aspectRatio > 1) {
       changeRate = (xRange[1] - xRange[0]) / (maxX - minX);
       const middle = size[1] / 2;
-      const height = ((maxY - minY) / 2) * changeRate;
-      yRange = [middle - height, middle + height];
+      const aspectHeight = ((maxY - minY) / 2) * changeRate;
+      yRange = [middle - aspectHeight, middle + aspectHeight];
     } else {
       changeRate = (yRange[1] - yRange[0]) / (maxY - minY);
       const middle = size[0] / 2;
-      const width = ((maxX - minX) * changeRate) / 2;
-      xRange = [middle - width, middle + width];
+      const aspectWidth = ((maxX - minX) * changeRate) / 2;
+      xRange = [middle - aspectWidth, middle + aspectWidth];
     }
 
     const xScale = scaleLinear()
@@ -230,22 +228,23 @@ class VisualizationLayer extends React.Component {
         d.y = yScale(d.y);
         d.r = changeRate * d.r;
       }
+      const actualR = Math.max(0, d.r - circlePadding)
 
       d.circlePath = generateCirclePath(
         d.x,
         d.y,
-        d.r,
+        actualR,
         numberOfCirclePoints ||
             Math.max(20, d.geoPathMultiple ? d.geoPathMultiple.length * 2 : 20)
       );
-      d.circlePathReal = generateRealCirclePath(d.x, d.y, d.r);
+      d.circlePathReal = generateRealCirclePath(d.x, d.y, actualR);
       d.toCartogram = d.geoPathMultiple
         ? combine(d.geoPathMultiple, d.circlePath)
-        : toCircle(d.geoPath, d.x, d.y, d.r);
+        : toCircle(d.geoPath, d.x, d.y, actualR);
 
       d.toMap = d.geoPathMultiple
         ? separate(d.circlePath, d.geoPathMultiple)
-        : fromCircle(d.x, d.y, d.r, d.geoPath);
+        : fromCircle(d.x, d.y, actualR, d.geoPath);
 
       d.toCartogramStyle = interpolateStyles(geoStyleD, circleStyleD);
       d.toMapStyle = interpolateStyles(circleStyleD, geoStyleD);
@@ -255,78 +254,97 @@ class VisualizationLayer extends React.Component {
 
   cartogramOrMap = (morphingDirection = 'toCartogram', features) => {
     const svg = this.svg;
-
-    if (morphingDirection === 'toMap') {
-      svg
-        .querySelectorAll('.react-dorling-cartogram-custom-mark')
-        .forEach((node) => {
-          node.style.display = 'none';
-          node.style.opacity = 0;
-        });
-    }
     const {
       transitionSeconds = 1,
-      customMark,
       customMarkTransition = 0.5
     } = this.props;
-    const counter = { var: 0 };
+
     const paths = svg.querySelectorAll('path.cartogram-element');
     const labels = svg.querySelectorAll('.cartogram-label');
+
+    if (this.forceUpdateTimeout) {
+      clearTimeout(this.forceUpdateTimeout);
+    }
+    
+    this.forceUpdateTimeout = setTimeout(() => { this.setState({ forceUpdate: !this.state.forceUpdate }) }, (transitionSeconds * 1000) + 100);
+
     labels &&
-      labels.forEach((label, labelI) => {
-        const labelFeature = features[labelI];
-        const xyCoords =
-          morphingDirection === 'toCartogram'
-            ? [labelFeature.x, labelFeature.y]
-            : labelFeature.centroid;
-        TweenMax.to(label, transitionSeconds, {
-          x: xyCoords[0],
-          y: xyCoords[1]
-        });
+    labels.forEach((label, labelI) => {
+      const labelFeature = features[labelI];
+      const xyCoords =
+        morphingDirection === 'toCartogram' || morphingDirection === 'cartoToCarto'
+          ? [labelFeature.x, labelFeature.y]
+          : labelFeature.centroid;
+      TweenMax.to(label, transitionSeconds, {
+        x: xyCoords[0],
+        y: xyCoords[1]
       });
-    TweenMax.to(counter, transitionSeconds, {
-      var: 100,
-      fill: 'green',
-      onUpdate() {
-        if (counter.var === 100 && morphingDirection === 'toCartogram') {
-          svg
-            .querySelectorAll('.react-dorling-cartogram-custom-mark')
-            .forEach((node) => {
-              node.style.display = 'block';
-              TweenMax.to(node, customMarkTransition, {
-                opacity: 1
-              });
-            });
-        }
-        paths.forEach((path, pathI) => {
-          if (counter.var === 100 && morphingDirection === 'toMap') {
-            path.setAttribute('d', features[pathI].geoPath);
-          } else if (
-            counter.var === 100 &&
-            morphingDirection === 'toCartogram'
-          ) {
-            path.setAttribute('d', features[pathI].circlePathReal);
-          } else if (features[pathI].geoPathMultiple) {
-            path.setAttribute(
-              'd',
-              features[pathI][morphingDirection]
-                .map(d => d(counter.var / 100))
-                .join(' ')
-            );
-          } else {
-            path.setAttribute(
-              'd',
-              features[pathI][morphingDirection](counter.var / 100)
-            );
-          }
-          Object.keys(features[pathI][`${morphingDirection}Style`]).forEach((styleKey) => {
-            path.style[styleKey] = features[pathI][
-              `${morphingDirection}Style`
-            ][styleKey](counter.var / 100);
-          });
-        });
-      }
     });
+
+    if (morphingDirection === "mapToMap" || morphingDirection === "cartoToCarto") {
+
+      const morphD = morphingDirection === "mapToMap" ? "geoPath" : "circlePathReal"
+
+      paths.forEach((path, pathI) => {
+        TweenMax.to(path, transitionSeconds, { attr: { d: features[pathI][morphD] } })
+      })
+
+    }
+    else {
+      if (morphingDirection === 'toMap') {
+        svg
+          .querySelectorAll('.react-dorling-cartogram-custom-mark')
+          .forEach((node) => {
+            node.style.display = 'none';
+            node.style.opacity = 0;
+          });
+      }
+      const counter = { var: 0 };
+      TweenMax.to(counter, transitionSeconds, {
+        var: 100,
+        fill: 'green',
+        onUpdate() {
+          if (counter.var === 100 && morphingDirection === 'toCartogram') {
+            svg
+              .querySelectorAll('.react-dorling-cartogram-custom-mark')
+              .forEach((node) => {
+                node.style.display = 'block';
+                TweenMax.to(node, customMarkTransition, {
+                  opacity: 1
+                });
+              });
+          }
+          paths.forEach((path, pathI) => {
+            if (counter.var === 100 && morphingDirection === 'toMap') {
+              path.setAttribute('d', features[pathI].geoPath);
+            } else if (
+              counter.var === 100 &&
+              morphingDirection === 'toCartogram'
+            ) {
+              path.setAttribute('d', features[pathI].circlePathReal);
+            } else if (features[pathI].geoPathMultiple) {
+              path.setAttribute(
+                'd',
+                features[pathI][morphingDirection]
+                  .map(d => d(counter.var / 100))
+                  .join(' ')
+              );
+            } else {
+              path.setAttribute(
+                'd',
+                features[pathI][morphingDirection](counter.var / 100)
+              );
+            }
+            Object.keys(features[pathI][`${morphingDirection}Style`]).forEach((styleKey) => {
+              path.style[styleKey] = features[pathI][
+                `${morphingDirection}Style`
+              ][styleKey](counter.var / 100);
+            });
+          });
+        }
+      });
+    }
+    
   }
   componentDidMount() {
     this.props.passVoronoiPoints(this.forceSimulateCartogram(
@@ -358,7 +376,7 @@ class VisualizationLayer extends React.Component {
       this.props.size[1] !== size[1] ||
       this.props.mapData !== mapData
     ) {
-      this.setState(calculateFeatures({ size, projectionType, mapData }));
+      this.setState({ forceUpdate: false, ...calculateFeatures({ size, projectionType, mapData })})
     }
   }
 
@@ -382,17 +400,54 @@ class VisualizationLayer extends React.Component {
     }
   }
 
-  shouldComponentUpdate(nextProps) {
-    const found =
-      this.state.features.find((d, i) =>
-        sizeByWrapper(this.props.sizeBy)(d, i) !==
-          sizeByWrapper(nextProps.sizeBy)(d, i)) ||
-      this.props.size[0] !== nextProps.size[0] ||
-      this.props.size[1] !== nextProps.size[1] ||
-      this.props.customMark !== nextProps.customMark ||
+  shouldComponentUpdate(nextProps, nextState) {
+    if (nextState.forceUpdate !== this.state.forceUpdate) {
+      return true
+    }
+    const found = this.props.customMark !== nextProps.customMark ||
       this.props.mapData !== nextProps.mapData;
+
+    const newCircleSize = this.state.features.find((d, i) =>
+      sizeByWrapper(this.props.sizeBy)(d, i) !==
+        sizeByWrapper(nextProps.sizeBy)(d, i))
+
+    const newCanvasSize = this.props.size[0] !== nextProps.size[0] ||
+    this.props.size[1] !== nextProps.size[1]
+
     if (found) {
       return true;
+    }
+
+    if ((newCanvasSize || newCircleSize) && nextProps.cartogram === this.props.cartogram && nextProps.cartogram) {
+      if (nextProps.customMark) {
+        return true
+      }
+      const direction = "cartoToCarto"
+      this.cartogramOrMap(
+        direction,
+        this.forceSimulateCartogram(
+          nextProps.sizeBy,
+          nextProps.data,
+          nextProps.size[0],
+          nextProps.size[1],
+          nextProps.mapData
+        )
+      );
+      return false;
+    }
+    else if (newCanvasSize && nextProps.cartogram === this.props.cartogram && !nextProps.cartogram) {
+      const direction = "mapToMap"
+      this.cartogramOrMap(
+        direction,
+        this.forceSimulateCartogram(
+          nextProps.sizeBy,
+          nextProps.data,
+          nextProps.size[0],
+          nextProps.size[1],
+          nextProps.mapData
+        )
+      );
+      return false;
     }
 
     if (nextProps.cartogram !== this.props.cartogram) {
@@ -425,7 +480,8 @@ class VisualizationLayer extends React.Component {
       zoomToFit,
       customMark,
       size,
-      mapData
+      mapData,
+      circlePadding
     } = this.props;
 
     const { featureEdges } = this.state;
@@ -463,7 +519,7 @@ class VisualizationLayer extends React.Component {
               key={`cartogram-element-${f.id || i}`}
               className="cartogram-element"
               fill="gold"
-              d={cartogram ? f.circlePath : f.geoPath}
+              d={cartogram ? f.circlePathReal : f.geoPath}
               style={cartogram ? circleStyleFn(f) : geoStyleFn(f)}
               {...hoverEvents(f)}
             />
@@ -472,7 +528,7 @@ class VisualizationLayer extends React.Component {
                 className="react-dorling-cartogram-custom-mark"
                 style={cartogram ? {} : { display: 'none', opacity: 0 }}
               >
-                {customMark(f, i)}
+                {customMark({ ...f, r: f.r - circlePadding }, i)}
               </g>
             )}
           </g>

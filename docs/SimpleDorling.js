@@ -102,7 +102,8 @@ class SimpleDorling extends React.Component {
     super(props);
     this.state = {
       carto: false,
-      sizeByBasic: false
+      sizeByBasic: false,
+      size: [500,500]
     };
   }
 
@@ -126,10 +127,11 @@ class SimpleDorling extends React.Component {
         >
           Change Geodata
         </button>
+        <button onClick={() => this.setState({ size: this.state.size[0] === 500 ? [800, 600] : [500, 500] })}>Change Size</button>
 
         <ResponsiveDorlingCartogram
           responsiveWidth
-          //          showBorders
+          showBorders
           cartogram={this.state.carto}
           //          circleStyle={{ fill: 'red' }}
           customMark={customMark}
@@ -139,7 +141,7 @@ class SimpleDorling extends React.Component {
               : { fill: 'orange', stroke: 'none' })
           }
           transitionSeconds={2}
-          size={[800, 600]}
+          size={this.state.size}
           sizeBy={this.state.sizeByBasic ? dynamicSize : staticSize}
           projectionType={geoNaturalEarth1}
           data={countryData}
@@ -147,7 +149,8 @@ class SimpleDorling extends React.Component {
           onHover={(d) => {
             console.info('hover d', d);
           }}
-          /*          label={d =>
+          circlePadding={5}
+          label={d =>
             (d.id ? (
               <text
                 fill="white"
@@ -161,7 +164,7 @@ class SimpleDorling extends React.Component {
             ) : (
               ''
             ))
-          } */
+          } 
         />
         <pre>
           {`import React from 'react';

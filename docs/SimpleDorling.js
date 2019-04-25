@@ -134,7 +134,7 @@ class SimpleDorling extends React.Component {
           showBorders
           cartogram={this.state.carto}
           //          circleStyle={{ fill: 'red' }}
-          customMark={customMark}
+//          customMark={customMark}
           geoStyle={d =>
             (d.bbhouseholds
               ? { fill: 'purple', stroke: 'none' }

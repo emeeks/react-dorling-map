@@ -376,7 +376,7 @@ class VisualizationLayer extends React.Component {
       this.props.size[1] !== size[1] ||
       this.props.mapData !== mapData
     ) {
-      this.setState({ forceUpdate: false, ...calculateFeatures({ size, projectionType, mapData })})
+      this.setState({ forceUpdate: this.state.forceUpdate, ...calculateFeatures({ size, projectionType, mapData })})
     }
   }
 

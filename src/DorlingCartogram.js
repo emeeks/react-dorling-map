@@ -1,33 +1,53 @@
-import React from 'react';
-import InteractionLayer from './InteractionLayer';
-import VisualizationLayer from './VisualizationLayer';
+import React from "react"
+import InteractionLayer from "./InteractionLayer"
+import VisualizationLayer from "./VisualizationLayer"
+
+const basicStyleFn = () => ({ fill: "gold", stroke: "black" })
 
 class DorlingCartogram extends React.Component {
   constructor(props) {
     const {
-      geoStyle = () => ({ fill: 'gold', stroke: 'black' }),
-      circleStyle = geoStyle || (() => ({ fill: 'gold', stroke: 'black' })),
+      geoStyle = basicStyleFn,
+      circleStyle = geoStyle || basicStyleFn,
       label
-    } = props;
+    } = props
 
-    const labelFn = label === true ? d => d.id : label;
+    const labelFn = label === true ? d => d.id : label
 
-    super(props);
+    super(props)
     this.state = {
       voronoiPoints: undefined,
-      geoStyleFn: typeof geoStyle === 'function' ? geoStyle : () => geoStyle,
+      geoStyleFn: typeof geoStyle === "function" ? geoStyle : () => geoStyle,
       circleStyleFn:
-        typeof circleStyle === 'function' ? circleStyle : () => circleStyle,
+        typeof circleStyle === "function" ? circleStyle : () => circleStyle,
       labelFn
-    };
+    }
   }
 
   static defaultProps = {
     size: [500, 500]
   }
 
-  passVoronoiPoints = (points) => {
-    this.setState({ voronoiPoints: points });
+  passVoronoiPoints = points => {
+    this.setState({ voronoiPoints: points })
+  }
+
+  componentWillReceiveProps(nextProps) {
+    if (
+      nextProps.geoStyle !== this.props.geoStyle ||
+      nextProps.circleStyle !== this.props.circleStyle
+    ) {
+      const {
+        geoStyle = basicStyleFn,
+        circleStyle = geoStyle || basicStyleFn
+      } = nextProps
+
+      this.setState({
+        geoStyleFn: typeof geoStyle === "function" ? geoStyle : () => geoStyle,
+        circleStyleFn:
+          typeof circleStyle === "function" ? circleStyle : () => circleStyle
+      })
+    }
   }
 
   render() {
@@ -46,8 +66,8 @@ class DorlingCartogram extends React.Component {
       transitionSeconds,
       numberOfCirclePoints,
       circlePadding = 0
-    } = this.props;
-    const { circleStyleFn, geoStyleFn, labelFn } = this.state;
+    } = this.props
+    const { circleStyleFn, geoStyleFn, labelFn } = this.state
 
     return (
       <div>
@@ -83,8 +103,8 @@ class DorlingCartogram extends React.Component {
           )}
         </svg>
       </div>
-    );
+    )
   }
 }
 
-export default DorlingCartogram;
+export default DorlingCartogram

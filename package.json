@@ -3,7 +3,7 @@
   "description": "Dorling Cartogram and Map Widget",
   "author": "Elijah Meeks",
   "user": "emeeks",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "scripts": {
     "start": "catalog start docs",
     "test": "jest",

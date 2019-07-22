@@ -418,7 +418,9 @@ class VisualizationLayer extends React.Component {
       ) ||
       this.props.size[0] !== prevProps.size[0] ||
       this.props.size[1] !== prevProps.size[1] ||
-      this.props.customMark !== prevProps.customMark
+      this.props.customMark !== prevProps.customMark ||
+      this.props.mapData !== prevProps.mapData ||
+      this.props.data !== prevProps.data
 
     if (found) {
       this.props.passVoronoiPoints(

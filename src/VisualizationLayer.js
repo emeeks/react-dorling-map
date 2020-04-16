@@ -140,7 +140,8 @@ class VisualizationLayer extends React.Component {
     super(props)
     this.state = {
       forceUpdate: false,
-      ...calculateFeatures({ size, projectionType, mapData })
+      ...calculateFeatures({ size, projectionType, mapData }),
+      props
     }
   }
 
@@ -241,7 +242,7 @@ class VisualizationLayer extends React.Component {
           d.y,
           actualR,
           numberOfCirclePoints ||
-            Math.max(20, d.geoPathMultiple ? d.geoPathMultiple.length * 2 : 20)
+          Math.max(20, d.geoPathMultiple ? d.geoPathMultiple.length * 2 : 20)
         )
         d.circlePathReal = generateRealCirclePath(d.x, d.y, actualR)
         d.toCartogram = d.geoPathMultiple
@@ -284,7 +285,7 @@ class VisualizationLayer extends React.Component {
         const labelFeature = features[labelI]
         const xyCoords =
           morphingDirection === "toCartogram" ||
-          morphingDirection === "cartoToCarto"
+            morphingDirection === "cartoToCarto"
             ? [labelFeature.x, labelFeature.y]
             : labelFeature.centroid
         TweenMax.to(label, transitionSeconds, {
@@ -390,7 +391,8 @@ class VisualizationLayer extends React.Component {
     }
   }
 
-  componentWillReceiveProps(nextProps) {
+  static getDerivedStateFromProps(nextProps, prevState) {
+    const { props } = prevState
     const {
       size = [500, 500],
       projectionType = geoMercator,
@@ -398,15 +400,17 @@ class VisualizationLayer extends React.Component {
     } = nextProps
 
     if (
-      this.props.size[0] !== size[0] ||
-      this.props.size[1] !== size[1] ||
-      this.props.mapData !== mapData
+      props.size[0] !== size[0] ||
+      props.size[1] !== size[1] ||
+      props.mapData !== mapData
     ) {
-      this.setState({
-        forceUpdate: this.state.forceUpdate,
-        ...calculateFeatures({ size, projectionType, mapData })
-      })
+      return {
+        forceUpdate: prevState.forceUpdate,
+        ...calculateFeatures({ size, projectionType, mapData }),
+        props
+      }
     }
+    return null
   }
 
   componentDidUpdate(prevProps) {
@@ -540,7 +544,7 @@ class VisualizationLayer extends React.Component {
       mapData
     )
 
-    let hoverEvents = () => {}
+    let hoverEvents = () => { }
 
     if (onHover) {
       hoverEvents = d => ({
@@ -595,7 +599,7 @@ class VisualizationLayer extends React.Component {
                 className="cartogram-label"
                 transform={`translate(${cartogram ? f.x : f.centroid[0]},${
                   cartogram ? f.y : f.centroid[1]
-                })`}
+                  })`}
               >
                 {label}
               </g>

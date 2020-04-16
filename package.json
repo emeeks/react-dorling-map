@@ -16,7 +16,6 @@
     "dist:modules": "del-cli ./dist-modules && cross-env BABEL_ENV=modules babel ./src --out-dir ./dist-modules",
     "preversion": "npm run test",
     "prepublishOnly": "npm run dist:es6 && npm run dist:modules",
-    "postpublish": "npm run gh-pages && npm run gh-pages:deploy",
     "postinstall": "node lib/post_install.js"
   },
   "main": "dist-modules",
@@ -49,9 +48,9 @@
     "git-prepush-hook": "^1.0.2",
     "jest": "^22.4.2",
     "purecss": "^1.0.0",
-    "react": "^16.4.0",
+    "react": "^16.12.0",
     "react-addons-test-utils": "^15.6.2",
-    "react-dom": "^16.4.0",
+    "react-dom": "^16.12.0",
     "react-github-corner": "^2.1.0",
     "rimraf": "^2.6.2",
     "webpack": "^3.10.0"

@@ -20,7 +20,8 @@ class DorlingCartogram extends React.Component {
       geoStyleFn: typeof geoStyle === "function" ? geoStyle : () => geoStyle,
       circleStyleFn:
         typeof circleStyle === "function" ? circleStyle : () => circleStyle,
-      labelFn
+      labelFn,
+      props
     }
   }
 
@@ -32,22 +33,32 @@ class DorlingCartogram extends React.Component {
     this.setState({ voronoiPoints: points })
   }
 
-  componentWillReceiveProps(nextProps) {
+  static getDerivedStateFromProps(nextProps, prevState) {
+    const { props } = prevState
+
+    const { label } = nextProps
+
     if (
-      nextProps.geoStyle !== this.props.geoStyle ||
-      nextProps.circleStyle !== this.props.circleStyle
+      nextProps.geoStyle !== props.geoStyle ||
+      nextProps.circleStyle !== props.circleStyle ||
+      nextProps.label !== props.label
     ) {
       const {
         geoStyle = basicStyleFn,
         circleStyle = geoStyle || basicStyleFn
       } = nextProps
 
-      this.setState({
+      const labelFn = nextProps.label === true ? d => d.id : nextProps.label
+
+      return {
         geoStyleFn: typeof geoStyle === "function" ? geoStyle : () => geoStyle,
         circleStyleFn:
-          typeof circleStyle === "function" ? circleStyle : () => circleStyle
-      })
+          typeof circleStyle === "function" ? circleStyle : () => circleStyle,
+        labelFn,
+        props: nextProps
+      }
     }
+    return null
   }
 
   render() {

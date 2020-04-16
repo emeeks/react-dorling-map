@@ -1,4 +1,4 @@
-import React from "react"
+import React, { useMemo, useState } from "react"
 import DorlingCartogram from "../src/DorlingCartogram"
 import ResponsiveDorlingCartogram from "../src/ResponsiveDorlingCartogram"
 import geoNaturalEarth1 from "d3-geo/src/projection/naturalEarth1"
@@ -97,7 +97,26 @@ const countryData = [
   { id: "US", bbhouseholds: 500, watchers: 500 }
 ]
 
+const defaultLabelFn = d =>
+  d.id ? (
+    <text
+      fill="white"
+      textAnchor="middle"
+      fontWeight={900}
+      fontSize={`${d.r / 2}px`}
+      y={d.r / 3.5}
+    >
+      {d.id}
+    </text>
+  ) : (
+      ""
+    )
+
+const differentLabelFn = d =>
+  "!!"
+
 const baseGeoStyle = d => {
+  if (!d) { return {} }
   return d.bbhouseholds
     ? { fill: "purple", stroke: "none" }
     : { fill: "orange", stroke: "none" }
@@ -107,89 +126,74 @@ const secondaryGeoStyle = d => {
   return !d.bbhouseholds
     ? { fill: "darkred", stroke: "none" }
     : d.bbhouseholds > 100
-    ? { fill: "steelblue", stroke: "purple" }
-    : { fill: "lightgreen", stroke: "none" }
+      ? { fill: "steelblue", stroke: "purple" }
+      : { fill: "lightgreen", stroke: "none" }
 }
 
-class SimpleDorling extends React.Component {
-  constructor(props) {
-    super(props)
-    this.state = {
-      carto: false,
-      sizeByBasic: false,
-      size: [500, 500],
-      geoStyle: baseGeoStyle
-    }
-  }
+export default props => {
 
-  render() {
-    return (
-      <div>
-        <button onClick={() => this.setState({ carto: !this.state.carto })}>
-          Change
+  const [carto, changeCarto] = useState(false)
+  const [sizeByBasic, changeSizeBy] = useState(false)
+  const [size, changeSize] = useState([500, 500])
+  const [geoStyle, changeStyle] = useState(() => baseGeoStyle)
+  const [filteredGeodata, changeGeodata] = useState(false)
+  const [labelFn, changeLabelFn] = useState(() => defaultLabelFn)
+
+  return (
+    <div>
+      <button onClick={() => changeCarto(!carto)}>
+        Change Cartogram Mode
         </button>
-        <button
-          onClick={() =>
-            this.setState({ sizeByBasic: !this.state.sizeByBasic })
-          }
-        >
-          Change SizeBy
+      <button
+        onClick={() =>
+          changeSizeBy(!sizeByBasic)
+        }
+      >
+        Change SizeBy
         </button>
-        <button
-          onClick={() =>
-            this.setState({ filteredGeodata: !this.state.filteredGeodata })
-          }
-        >
-          Change Geodata
+      <button
+        onClick={() =>
+          changeGeodata(!filteredGeodata)
+        }
+      >
+        Change Geodata
         </button>
-        <button
-          onClick={() =>
-            this.setState({
-              size: this.state.size[0] === 500 ? [800, 600] : [500, 500]
-            })
-          }
-        >
-          Change Size
+      <button
+        onClick={() =>
+          changeSize(size[0] === 500 ? [800, 600] : [500, 500])
+        }
+      >
+        Change Size
         </button>
-        <button onClick={() => this.setState({ geoStyle: secondaryGeoStyle })}>
-          Change Style Fn
+      <button onClick={() => changeStyle(() => secondaryGeoStyle)}>
+        Change Style Fn
         </button>
 
-        <ResponsiveDorlingCartogram
-          responsiveWidth
-          showBorders
-          cartogram={this.state.carto}
-          //          circleStyle={{ fill: 'red' }}
-          //          customMark={customMark}
-          geoStyle={this.state.geoStyle}
-          transitionSeconds={2}
-          size={this.state.size}
-          sizeBy={this.state.sizeByBasic ? dynamicSize : staticSize}
-          projectionType={geoNaturalEarth1}
-          data={countryData}
-          mapData={this.state.filteredGeodata ? secondGeoData : geodata}
-          onHover={d => {
-            console.info("hover d", d)
-          }}
-          circlePadding={5}
-          label={d =>
-            d.id ? (
-              <text
-                fill="white"
-                textAnchor="middle"
-                fontWeight={900}
-                fontSize={`${d.r / 2}px`}
-                y={d.r / 3.5}
-              >
-                {d.id}
-              </text>
-            ) : (
-              ""
-            )
-          }
-        />
-        <pre>
-          {`import React from 'react';
+      <button onClick={() => changeLabelFn(() => differentLabelFn)}>
+        Change Label Fn
+        </button>
+
+      <ResponsiveDorlingCartogram
+        responsiveWidth
+        showBorders
+        cartogram={carto}
+        //          circleStyle={{ fill: 'red' }}
+        //          customMark={customMark}
+        geoStyle={geoStyle}
+        transitionSeconds={2}
+        size={size}
+        sizeBy={sizeByBasic ? dynamicSize : staticSize}
+        projectionType={geoNaturalEarth1}
+        data={countryData}
+        mapData={filteredGeodata ? secondGeoData : geodata}
+        onHover={d => {
+          console.info("hover d", d)
+        }}
+        circlePadding={5}
+        label={labelFn}
+      />
+      <pre>
+        {`import React from 'react';
 import DorlingCartogram from '../src/DorlingCartogram';
 // import { geoAzimuthalEquidistant } from 'd3-geo';
 
@@ -302,10 +306,8 @@ class SimpleDorling extends React.Component {
 }
 
 export default SimpleDorling;`}
-        </pre>
-      </div>
-    )
-  }
-}
+      </pre>
+    </div>
+  )
 
-export default SimpleDorling
+}

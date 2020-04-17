@@ -407,7 +407,7 @@ class VisualizationLayer extends React.Component {
       return {
         forceUpdate: prevState.forceUpdate,
         ...calculateFeatures({ size, projectionType, mapData }),
-        props
+        props: nextProps
       }
     }
     return null

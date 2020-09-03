@@ -3,7 +3,7 @@ import { geoPath, geoMercator } from "d3-geo"
 import { toCircle, fromCircle, combine, separate } from "flubber"
 import { interpolateHsl, interpolateNumber } from "d3-interpolate"
 import { scaleLinear } from "d3-scale"
-import TweenMax from "gsap/TweenMax"
+import gsap from "gsap"
 import {
   forceSimulation,
   forceLink,
@@ -242,7 +242,7 @@ class VisualizationLayer extends React.Component {
           d.y,
           actualR,
           numberOfCirclePoints ||
-          Math.max(20, d.geoPathMultiple ? d.geoPathMultiple.length * 2 : 20)
+            Math.max(20, d.geoPathMultiple ? d.geoPathMultiple.length * 2 : 20)
         )
         d.circlePathReal = generateRealCirclePath(d.x, d.y, actualR)
         d.toCartogram = d.geoPathMultiple
@@ -285,10 +285,11 @@ class VisualizationLayer extends React.Component {
         const labelFeature = features[labelI]
         const xyCoords =
           morphingDirection === "toCartogram" ||
-            morphingDirection === "cartoToCarto"
+          morphingDirection === "cartoToCarto"
             ? [labelFeature.x, labelFeature.y]
             : labelFeature.centroid
-        TweenMax.to(label, transitionSeconds, {
+        gsap.to(label, {
+          duration: transitionSeconds,
           x: xyCoords[0],
           y: xyCoords[1]
         })
@@ -310,7 +311,8 @@ class VisualizationLayer extends React.Component {
         morphingDirection === "mapToMap" ? "geoPath" : "circlePathReal"
 
       paths.forEach((path, pathI) => {
-        TweenMax.to(path, transitionSeconds, {
+        gsap.to(path, {
+          duration: transitionSeconds,
           attr: { d: features[pathI][morphD] }
         })
       })
@@ -324,7 +326,8 @@ class VisualizationLayer extends React.Component {
           })
       }
       const counter = { var: 0 }
-      TweenMax.to(counter, transitionSeconds, {
+      gsap.to(counter, {
+        duration: transitionSeconds,
         var: 100,
         fill: "green",
         onUpdate() {
@@ -333,9 +336,7 @@ class VisualizationLayer extends React.Component {
               .querySelectorAll(".react-dorling-cartogram-custom-mark")
               .forEach(node => {
                 node.style.display = "block"
-                TweenMax.to(node, customMarkTransition, {
-                  opacity: 1
-                })
+                gsap.to(node, { duration: customMarkTransition, opacity: 1 })
               })
           }
           paths.forEach((path, pathI) => {
@@ -544,7 +545,7 @@ class VisualizationLayer extends React.Component {
       mapData
     )
 
-    let hoverEvents = () => { }
+    let hoverEvents = () => {}
 
     if (onHover) {
       hoverEvents = d => ({
@@ -599,7 +600,7 @@ class VisualizationLayer extends React.Component {
                 className="cartogram-label"
                 transform={`translate(${cartogram ? f.x : f.centroid[0]},${
                   cartogram ? f.y : f.centroid[1]
-                  })`}
+                })`}
               >
                 {label}
               </g>
